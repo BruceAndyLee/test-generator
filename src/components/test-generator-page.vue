@@ -66,12 +66,12 @@ export default {
             })
         );
         this.generatedCode = genEdgeSuite(this.userInput, groupedSets);
-        console.log("regenerated code");
       } catch (e) {
+        // @ts-ignore
         this.generatedCode = e;
       }
     },
-    add_group(confirmed) {
+    add_group(confirmed: boolean) {
       if (!confirmed) {
         this.newGroupName = '';
         this.add_group_mode = false;

@@ -79,7 +79,7 @@ function stringifyTestRows(testPhases: ParsedCell[][], ind: number, groupedColum
     const [phaseCell, ...argCells] = phaseRow;
 
     if (!(phaseCell.value in phaseCodeMapping)) {
-      console.error(`Unrecognized phase "${phaseCell}"`);
+      // console.warn(`Unrecognized phase "${phaseCell}"`);
       return "";
     }
 
@@ -89,11 +89,8 @@ function stringifyTestRows(testPhases: ParsedCell[][], ind: number, groupedColum
       ? argCells.filter((cell) => cell.value !== "" && groupedColumns[phaseCell.value].has(cell.key))
       : argCells.filter((cell) => cell.value !== "");
 
+    // @ts-ignore
     generatorStrings[phaseCell.value] = phaseCodeMapping[phaseCell.value](genGeneratorArgs(filteredCells));
-
-    console.log("stringifyTestRows: phaseCell.value", phaseCell.value);
-    console.log("stringifyTestRows: groupedColumns", groupedColumns);
-    console.log("stringifyTestRows: filteredCells", filteredCells);
   }
 
   return `{
