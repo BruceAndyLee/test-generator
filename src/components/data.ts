@@ -1,4 +1,6 @@
-export const sampleTable = `
+export const vertexSampleTable = ``;
+
+export const edgeSampleTable = `
 | phase        | solvent | solution_c | solution_v | MW     | density | ω    | C    | count | amount  | mass  | volume |
 | ------------ | ------- | ---------- | ---------- | ------ | ------- | -----| ---- | ----- | ------- | ----- | ------ |
 |--------------|---------|------------|------------|--------|---------|------|------|-------|---------|-------|--------|
@@ -77,4 +79,6 @@ export const sampleTable = `
 | setup        | 42      |            | 1 mL       |        |         |      |      |       |         |       |        |
 | transition   |         | 2 M        |            |        |         |      |      |       |         |       |        |
 | elements     | 42      | 2 M        | 0.5 mL     |        |         |      |      |       | 2 mmol  | 2 mg  | 2 mL   |
-`
+`;
+
+const graphQueryLanguageSampleQuery = ``;

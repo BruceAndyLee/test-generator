@@ -30,13 +30,29 @@
 
 <script lang="ts">
 import { debounce } from 'lodash'; // Import lodash for debouncing
-import { genEdgeSuite } from "./lib";
-import { sampleTable } from './data';
+import { genVertexSuite } from "@/lib/gen-vertex-tests";
+import { genEdgeSuite } from "@/lib/gen-edge-tests";
+import { vertexSampleTable, edgeSampleTable } from './data';
+
+const generatorConfigs = {
+  vertex: {
+    method: genVertexSuite,
+    sampleTable: vertexSampleTable
+  },
+  edge: {
+    method: genEdgeSuite,
+    sampleTable: edgeSampleTable,
+  },
+  fixture: {
+    method: () => { },
+  },
+}
 
 export default {
+  inject: ["generatorType"],
   data() {
     return {
-      userInput: sampleTable, // Model for the user's input
+      userInput: edgeSampleTable, // Model for the user's input
       generatedCode: '', // Model for the mirrored (read-only) input
       debouncedUpdate: () => { },
       add_group_mode: false,
@@ -47,6 +63,19 @@ export default {
         after: "",
       },
     };
+  },
+  computed: {
+    selectedGenerator() {
+      return generatorConfigs[this.generatorType ?? "vertex"];
+    },
+  },
+  watch: {
+    selectedGenerator: {
+      handler() {
+        this.userInput = this.selectedGenerator.sampleTable;
+        this.debouncedUpdate();
+      },
+    },
   },
   created() {
     // Create a debounced version of the updateMirroredInput method
