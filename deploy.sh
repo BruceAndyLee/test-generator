@@ -10,10 +10,10 @@ npm run build
 cd dist
 
 git init
-git add -A
+git add dist -f
 git commit -m 'deploy'
 
 # if you are deploying to https://<USERNAME>.github.io/<REPO>
-git push -f git@github.com:BruceAndyLee/test-generator.git main:gh-pages
+git subtree push --prefix dist origin dh-pages
 
 cd -
