@@ -1,6 +1,6 @@
 # test-generator
 
-Demo should be available [here](https://git@github.com:BruceAndyLee/test-generator.git)
+Demo should be available [here](https://BruceAndyLee.github.io/test-generator)
 
 ## Installation for local use
 
