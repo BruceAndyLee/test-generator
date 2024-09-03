@@ -156,7 +156,7 @@ function genGeneratorSignatures(paramNames: string[]): string {
 // TODO: приделать поддержку вложенности внутри каждой группы колонок? чтобы аргументы генераторов тоже были объектами с вложенностями?
 // TODO: приделать обработку дефолтных значений из строчки shared
 // TODO: приделать определение типов аргументов
-export function genEdgeSuite(markdownTable: string, groupedColumns: Record<string, Set<string>>): string {
+export function genEdgeSuite(markdownTable: string, groupedColumns: Record<string, Set<string>>): [string, string[]] {
 
   const [tableRowsParsed, headers] = parseTableRows(markdownTable);
   const tableRowsGroupedByEdge = groupByEdge(tableRowsParsed);
@@ -164,7 +164,7 @@ export function genEdgeSuite(markdownTable: string, groupedColumns: Record<strin
   const generatedTests = tableRowsGroupedByEdge.map(((testRows, ind) => stringifyTestRows(testRows, ind, groupedColumns)));
 
   const generator_signatures = genGeneratorSignatures(headers);
-  return `${generator_signatures}\n\nconst testSuite = [\n${generatedTests.join(",\n")}\n];`.replaceAll("\t", "  ");
+  return [`${generator_signatures}\n\nconst testSuite = [\n${generatedTests.join(",\n")}\n];`.replaceAll("\t", "  "), headers];
 }
 
 // TODO подуматт: как автоматизировать генерацию внутренностей генераторов?

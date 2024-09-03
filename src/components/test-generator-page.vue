@@ -1,13 +1,13 @@
 <template>
   <div class="split-screen">
     <div class="column-grouping">
-      <div v-for="_, group in columnGroups" :key="group" class="group-inputs">
+      <div v-for="group in groupsByGeneratorType[generatorType]" :key="group" class="group-inputs">
         <div>{{ group }}</div>
         <input v-model="columnGroups[group]" class="group-input" @input="debouncedUpdate">
         <button :id="`delete-${group}-group`" @click="delete columnGroups[group]">x</button>
       </div>
       <div class="add-grouping-btn-container">
-        <button v-if="!add_group_mode" @click="add_group_mode = true">+ column phase group</button>
+        <button v-if="!add_group_mode" @click="add_group_mode = true">+ column group</button>
         <div v-else>
           <div>New group: {{ newGroupName }}</div>
           <input v-model="newGroupName" class="group-input">
@@ -19,22 +19,26 @@
 
     <div class=" textarea-wrapper">
       <div>your .md table</div>
-      <textarea v-model="userInput" @input="debouncedUpdate" placeholder="Type here..."></textarea>
+      <textarea v-model="userInput" @input="debouncedUpdate" placeholder="Type here..." />
     </div>
     <div class="textarea-wrapper">
       <div>Generated tests</div>
-      <textarea v-model="generatedCode" readonly placeholder="Mirrored input will appear here..."></textarea>
+      <textarea v-model="generatedCode" readonly placeholder="Mirrored input will appear here..." />
     </div>
   </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { debounce } from 'lodash'; // Import lodash for debouncing
 import { genVertexSuite } from "@/lib/gen-vertex-tests";
 import { genEdgeSuite } from "@/lib/gen-edge-tests";
 import { vertexSampleTable, edgeSampleTable } from './data';
+import { inject, ref, onMounted, watch } from 'vue';
+import type { Ref } from 'vue';
 
-const generatorConfigs = {
+type GeneratorSetup = { method: (...args: any[]) => string, sampleTable?: string };
+
+const generatorConfigs: Record<string, GeneratorSetup> = {
   vertex: {
     method: genVertexSuite,
     sampleTable: vertexSampleTable
@@ -44,76 +48,87 @@ const generatorConfigs = {
     sampleTable: edgeSampleTable,
   },
   fixture: {
-    method: () => { },
+    method: () => { return ""; },
   },
 }
 
-export default {
-  inject: ["generatorType"],
-  data() {
-    return {
-      userInput: edgeSampleTable, // Model for the user's input
-      generatedCode: '', // Model for the mirrored (read-only) input
-      debouncedUpdate: () => { },
-      add_group_mode: false,
-      newGroupName: "",
-      columnGroups: {
-        before: "",
-        transition: "",
-        after: "",
-      },
+type TestType = "vertex" | "edge" | "fixture";
+
+const generatorType = inject("generatorType") as Ref<TestType>;
+
+const userInput = ref(edgeSampleTable); // Model for the user's input
+const generatedCode = ref(''); // Model for the mirrored (read-only) input
+const headers = ref<string[]>([])
+const debouncedUpdate = ref(() => { });
+const add_group_mode = ref(false);
+const newGroupName = ref("");
+const columnGroups = ref({
+  setup: "",
+  transition: "",
+  gql_spec: "",
+  elements: "",
+});
+
+const groupsByGeneratorType: Record<TestType, string[]> = {
+  vertex: ["setup", "elements"],
+  edge: ["setup", "transition", "elements"],
+}
+
+onMounted(() => {
+  debouncedUpdate.value = debounce(updateGeneratedCode, 300);
+  debouncedUpdate.value();
+})
+
+watch(
+  generatorType,
+  () => {
+    userInput.value = generatorConfigs[generatorType.value].sampleTable ?? "";
+    debouncedUpdate.value();
+  },
+)
+
+const updateGeneratedCode = () => {
+  try {
+    const groupedSets: Record<string, Set<string>> = Object.fromEntries(
+      Object
+        .entries(columnGroups.value)
+        .map(([group, values]) => {
+          const trimmed_values = values
+            .split(" ")
+            .map((value: string) => value.trim())
+            .filter((value: string) => !!value)
+          return [group, new Set(trimmed_values)];
+        })
+    );
+    if (generatorType.value === "edge") {
+      [generatedCode.value, headers.value] = genEdgeSuite(userInput.value, groupedSets);
+
+    } else if (generatorType.value === "vertex") {
+      [generatedCode.value, headers.value] = genVertexSuite(userInput.value, groupedSets);
+    }
+    console.log(generatedCode.value);
+  } catch (e) {
+    // @ts-ignore
+    userInput.value = e;
+  }
+};
+const add_group = (confirmed: boolean) => {
+  if (!confirmed) {
+
+    newGroupName.value = '';
+
+    add_group_mode.value = false;
+  } else {
+
+    columnGroups.value = {
+      ...columnGroups.value,
+      [newGroupName.value]: '',
     };
-  },
-  computed: {
-    selectedGenerator() {
-      return generatorConfigs[this.generatorType ?? "vertex"];
-    },
-  },
-  watch: {
-    selectedGenerator: {
-      handler() {
-        this.userInput = this.selectedGenerator.sampleTable;
-        this.debouncedUpdate();
-      },
-    },
-  },
-  created() {
-    // Create a debounced version of the updateMirroredInput method
-    this.debouncedUpdate = debounce(this.updateGeneratedCode, 300);
-    this.debouncedUpdate();
-  },
-  methods: {
-    // Method to update the mirrored input with the user's input
-    updateGeneratedCode() {
-      try {
-        const groupedSets = Object.fromEntries(
-          Object
-            .entries(this.columnGroups)
-            .map(([group, values]) => {
-              const trimmed_values = values.split(" ").map((value) => value.trim()).filter(value => !!value)
-              return [group, new Set(trimmed_values)];
-            })
-        );
-        this.generatedCode = genEdgeSuite(this.userInput, groupedSets);
-      } catch (e) {
-        // @ts-ignore
-        this.generatedCode = e;
-      }
-    },
-    add_group(confirmed: boolean) {
-      if (!confirmed) {
-        this.newGroupName = '';
-        this.add_group_mode = false;
-      } else {
-        this.columnGroups = {
-          ...this.columnGroups,
-          [this.newGroupName]: '',
-        };
-        this.newGroupName = '';
-        this.add_group_mode = false;
-      }
-    },
-  },
+
+    newGroupName.value = '';
+
+    add_group_mode.value = false;
+  }
 };
 </script>
 

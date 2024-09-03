@@ -1,22 +1,33 @@
 <script setup lang="ts">
-import { provide, ref } from 'vue';
+import { onMounted, provide, ref } from 'vue';
 import TestGeneratorPage from './components/test-generator-page.vue';
 const selectedGeneratorType = ref("edge");
+
+const LOCAL_STORAGE_ITEM_KEY = "last-generator-type";
+
+onMounted(() => {
+  selectedGeneratorType.value = localStorage.getItem(LOCAL_STORAGE_ITEM_KEY) ?? "vertex";
+})
 
 const generatorTypes = [
   { name: "Vertex tests", value: "vertex" },
   { name: "Edge tests", value: "edge" },
-  { name: "Fixture trees", value: "fixture" },
+  { name: "Fixture trees", value: "fixture", disabled: true },
 ]
 
-provide("generatorType", selectedGeneratorType)
+const onSelectGeneratorType = (val: string) => {
+  selectedGeneratorType.value = val;
+  localStorage.setItem(LOCAL_STORAGE_ITEM_KEY, val);
+};
+
+provide("generatorType", selectedGeneratorType);
 </script>
 
 <template>
   <header>
     <div v-for="generatorType of generatorTypes" :key="generatorType.value"
-      @click="selectedGeneratorType = generatorType.value" class="generator-type"
-      :class="{ active: selectedGeneratorType === generatorType.value }">
+      @click="onSelectGeneratorType(generatorType.value)" class="generator-type"
+      :class="{ active: selectedGeneratorType === generatorType.value }" :disabled="!!generatorType.disabled">
       {{ generatorType.name }}
     </div>
   </header>
