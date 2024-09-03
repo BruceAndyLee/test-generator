@@ -36,11 +36,11 @@ export function genVertexSuite(markdownTable: string, groupedColumnSets: Record<
     }, {} as Record<string, string>);
 
     // Generate the test case JS code
-    return [genTestCaseCode(setupData, elementsData), headers];
+    return genTestCaseCode(setupData, elementsData);
   });
 
   // Combine all test cases into a single JS array declaration
-  return `const test_cases = [
+  return [`const test_cases = [
 ${testCasesCode.join(',\n')}
-];`;
+];`, headers];
 }

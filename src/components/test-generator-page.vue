@@ -36,15 +36,13 @@ import { vertexSampleTable, edgeSampleTable } from './data';
 import { inject, ref, onMounted, watch } from 'vue';
 import type { Ref } from 'vue';
 
-type GeneratorSetup = { method: (...args: any[]) => string, sampleTable?: string };
+type GeneratorSetup = { method?: (...args: any[]) => string, sampleTable?: string };
 
 const generatorConfigs: Record<string, GeneratorSetup> = {
   vertex: {
-    method: genVertexSuite,
     sampleTable: vertexSampleTable
   },
   edge: {
-    method: genEdgeSuite,
     sampleTable: edgeSampleTable,
   },
   fixture: {
@@ -62,16 +60,19 @@ const headers = ref<string[]>([])
 const debouncedUpdate = ref(() => { });
 const add_group_mode = ref(false);
 const newGroupName = ref("");
-const columnGroups = ref({
+
+const DEFAULT_GROUPS = {
   setup: "",
   transition: "",
   gql_spec: "",
   elements: "",
-});
+};
+const columnGroups = ref(DEFAULT_GROUPS);
 
-const groupsByGeneratorType: Record<TestType, string[]> = {
+const groupsByGeneratorType: Record<TestType, (keyof typeof DEFAULT_GROUPS)[]> = {
   vertex: ["setup", "elements"],
   edge: ["setup", "transition", "elements"],
+  fixture: [],
 }
 
 onMounted(() => {
