@@ -2,9 +2,17 @@
   <div class="split-screen">
     <div class="column-grouping">
       <div v-for="group in groupsByGeneratorType[generatorType]" :key="group" class="group-inputs">
-        <div>{{ group }}</div>
-        <input v-model="columnGroups[group]" class="group-input" @input="debouncedUpdate">
-        <button :id="`delete-${group}-group`" @click="delete columnGroups[group]">x</button>
+        {{ group }}
+        <!-- <div class="group-content-input">
+          <div>{{ group }}</div>
+          <input v-model="columnGroups[group]" class="group-input" @input="debouncedUpdate">
+          <button :id="`delete-${group}-group`" @click="delete columnGroups[group]">x</button>
+        </div> -->
+        <div class="header-options">
+          <div class="header-option" v-for="header of headers" :key="`${group}-${header}`">
+            <input type="checkbox" v-model="columnGroups[group][header]" @input="debouncedUpdate"> {{ header }}
+          </div>
+        </div>
       </div>
       <div class="add-grouping-btn-container">
         <button v-if="!add_group_mode" @click="add_group_mode = true">+ column group</button>
@@ -62,10 +70,10 @@ const add_group_mode = ref(false);
 const newGroupName = ref("");
 
 const DEFAULT_GROUPS = {
-  setup: "",
-  transition: "",
-  gql_spec: "",
-  elements: "",
+  setup: {},
+  transition: {},
+  gql_spec: {},
+  elements: {},
 };
 const columnGroups = ref(DEFAULT_GROUPS);
 
@@ -89,18 +97,17 @@ watch(
 )
 
 const updateGeneratedCode = () => {
+  const groupedSets: Record<string, Set<string>> = Object.fromEntries(
+    Object
+      .entries(columnGroups.value)
+      .map(([group, values]) => {
+        const trimmed_values = Object.entries(values)
+          .filter(([, value]) => value)
+          .map(([header]) => (header as string).trim().replaceAll(" ", "_").replaceAll("-", "_"))
+        return [group, new Set(trimmed_values)];
+      })
+  );
   try {
-    const groupedSets: Record<string, Set<string>> = Object.fromEntries(
-      Object
-        .entries(columnGroups.value)
-        .map(([group, values]) => {
-          const trimmed_values = values
-            .split(" ")
-            .map((value: string) => value.trim())
-            .filter((value: string) => !!value)
-          return [group, new Set(trimmed_values)];
-        })
-    );
     if (generatorType.value === "edge") {
       [generatedCode.value, headers.value] = genEdgeSuite(userInput.value, groupedSets);
 

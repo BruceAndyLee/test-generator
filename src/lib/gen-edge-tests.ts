@@ -1,29 +1,4 @@
-type ParsedCell = {
-  key: string,
-  value: string,
-}
-
-function parseTableRows(markdownTable: string): [ParsedCell[][], string[]] {
-  const rows = markdownTable.trim().split("\n");
-  const res = [];
-  const headers_raw = rows[0].trim().split("|");
-  const headers = headers_raw.slice(1, headers_raw.length - 1).map(cell => cell.trim());
-
-  for (const row of rows.slice(1)) {
-    // Clean up the row and split by the pipe symbol to get individual cells
-    const raw_cells = row.trim().split("|");
-    const cells = raw_cells
-      .slice(1, raw_cells.length - 1)
-      .map((cell, ind) => ({ key: headers[ind], value: cell.trim() }));
-
-    if (cells.length === 0 || cells[0].value.split("").every(char => char === '-' || char === '=')) {
-      continue;
-    } else {
-      res.push(cells);
-    }
-  }
-  return [res, headers];
-}
+import { type ParsedCell, parseTableRows, genGeneratorArgs, genGeneratorSignatures } from "./shared";
 
 function groupByEdge(tableRowsParsed: ParsedCell[][]): ParsedCell[][][] {
   const groupedTests = [];
@@ -37,30 +12,6 @@ function groupByEdge(tableRowsParsed: ParsedCell[][]): ParsedCell[][][] {
   }
   return groupedTests;
 }
-
-function genArgCode(cell: ParsedCell): string {
-  if (cell.value === "null") {
-    return `\t\t${cell.key}: null`;
-  }
-  if (cell.value === "false") {
-    return `\t\t${cell.key}: false`;
-  }
-  if (cell.value === "true") {
-    return `\t\t${cell.key}: true`;
-  }
-  const asFloat = Number.parseFloat(cell.value);
-  const typeAwareStringified = Number.isNaN(asFloat) ? `"${cell.value}"` : asFloat
-  return `\t\t${cell.key}: ${typeAwareStringified}`;
-}
-
-const genGeneratorArgs = (argCells: ParsedCell[]) => {
-  if (argCells.length === 0) {
-    return "";
-  }
-  return `\n${argCells
-    .map(genArgCode)
-    .join(",\n")}\n\t`;
-};
 
 const phaseCodeMapping = {
   setup: (argsString: string) => `gen_edge_setup({${argsString}})`,
@@ -101,16 +52,30 @@ function stringifyTestRows(testPhases: ParsedCell[][], ind: number, groupedColum
 }`;
 }
 
+// TODO: приделать разбиение колонок на setup/transition/ui
+// TODO: приделать поддержку вложенности внутри каждой группы колонок, чтобы аргументы генераторов тоже были объектами с вложенностями
+// TODO: научиться работать с таблицами, которые разбивают ячейки знаками "+"
+
+// TODO: приделать интерполяцию, которая активируется только в том случае, если в каком-то из столбцов указано множественное название (типа схлопнутая краткая запись, чтобы не повторять один и тот же набор тестов для разных вариаций одного из аргументов)
+// TODO: поддерживать subset-ы для колонок, чтобы указывать явно какие столцбы в какой генератор пробрасываются в качестве аргументов
+// TODO: написать режим работы с typescript (вместо js-doc надо формировать определения типов)
+// TODO: обработать случай, когда в генератор не падает ни одного аргумента (надо передавать строку "{}" без переносов)
+// TODO: научиться обрабатывать массивы и объекты в качестве значений аргументов в ячейках
+// TODO: использовать всё, что находится на 0й строчке перехода за таблицей в качестве заголовка теста
+// TODO: генерить компонент с пропами по выбранным столбцам из таблицы
+// TODO: приделать обработку дефолтных значений из строчки shared
+// TODO: приделать определение типов аргументов
+
 const returnTypes = {
   gen_edge_setup: "ComponentSetup",
   gen_transition: "FSMTransition",
-  gen_edge_ui_spec: "FSMElement[]"
+  gen_ui_spec: "FSMElement[]"
 }
 
 const generatorBoilerplate = {
   gen_edge_setup: "",
   gen_transition: "return (wr) => {\n // transition implementation\n};",
-  gen_edge_ui_spec: `const normalized_config = {
+  gen_ui_spec: `const normalized_config = {
   ...base_ui_config,
   ...config,
 };
@@ -120,43 +85,6 @@ const ui_spec = [];
 return ui_spec;
 `
 }
-
-function generateJSDoc(generator_name: "gen_edge_setup" | "gen_transition" | "gen_edge_ui_spec", paramNames: string[]) {
-  const paramLines = paramNames.map(param => ` *  ${param}?: any;`).join('\n');
-  return `/**\n * Generated function\n * @param {{\n${paramLines}\n * }} config\n * @returns {${returnTypes[generator_name]}}\n */`;
-}
-
-function generateFunction(generator_name: "gen_edge_setup" | "gen_transition" | "gen_edge_ui_spec", paramNames: string[]) {
-  return `${generateJSDoc(generator_name, paramNames)}\nexport const ${generator_name}(config) => {\n${generatorBoilerplate[generator_name]}\n}`;
-}
-
-function genGeneratorSignatures(paramNames: string[]): string {
-
-  // Generate the three function signatures
-  const setupFunction = generateFunction('gen_edge_setup', paramNames);
-  const transitionFunction = generateFunction('gen_transition', paramNames);
-  const uiSpecFunction = generateFunction('gen_edge_ui_spec', paramNames);
-
-  return `${setupFunction}\n\n${transitionFunction}\n\n${uiSpecFunction}`;
-}
-
-// // TODO: приделать генерацию сигнатур генераторов для теста
-// // TODO: приделать генерацию js-doc для этих генераторов
-// // TODO: приделать разбиение колонок на setup/transition/ui
-// TODO: научиться работать с таблицами, которые разбивают ячейки знаками "+"
-// TODO: поддерживать subset-ы для колонок, чтобы указывать явно какие столцы в какой генератор пробрасываются в качестве аргументов
-// TODO: написать режим работы с typescript (вместо js-doc надо формировать определения типов)
-// TODO: заголовки в таблице могут содержать пробелы, надо заменять их на подчеркивания
-// TODO: обработать случай, когда в генератор не падает ни одного аргумента (надо передавать строку "{}" без переносов)
-// TODO: приделать мапперы для названий столбцов (типа как в случае ω -> mass_fraction)
-// TODO: резолверы, чтобы можно было раскрывать лаконичную декларацию параметров в более длинные значения при вызове генераторов
-// TODO: научиться обрабатывать массивы и объекты в качестве значений аргументов в ячейках
-// ! TODO: поддержка произвольного количества transition в одном тесте
-// TODO: использовать всё, что находится на 0й строчке перехода за таблицей в качестве заголовка теста 
-// TODO: генерить компонент с пропами по выбранным столбцам из таблицы
-// TODO: приделать поддержку вложенности внутри каждой группы колонок? чтобы аргументы генераторов тоже были объектами с вложенностями?
-// TODO: приделать обработку дефолтных значений из строчки shared
-// TODO: приделать определение типов аргументов
 export function genEdgeSuite(markdownTable: string, groupedColumns: Record<string, Set<string>>): [string, string[]] {
 
   const [tableRowsParsed, headers] = parseTableRows(markdownTable);
@@ -164,7 +92,7 @@ export function genEdgeSuite(markdownTable: string, groupedColumns: Record<strin
 
   const generatedTests = tableRowsGroupedByEdge.map(((testRows, ind) => stringifyTestRows(testRows, ind, groupedColumns)));
 
-  const generator_signatures = genGeneratorSignatures(headers);
+  const generator_signatures = genGeneratorSignatures<keyof typeof returnTypes>(["gen_edge_setup", "gen_transition", "gen_ui_spec"], headers, returnTypes, generatorBoilerplate);
   return [`${generator_signatures}\n\nconst testSuite = [\n${generatedTests.join(",\n")}\n];`.replaceAll("\t", "  "), headers];
 }
 

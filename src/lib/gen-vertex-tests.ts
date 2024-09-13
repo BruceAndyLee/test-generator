@@ -1,46 +1,43 @@
+import { genGeneratorArgs, genGeneratorSignatures, parseTableRows, type ParsedCell } from "./shared";
+
+const genVertexTestCaseCode = (row: ParsedCell[], ind: number, headers: string[], groupedColumnSets: Record<"setup" | "elements", Set<string>>) => {
+  const setupCells = groupedColumnSets.setup.size > 0
+    ? row.filter((cell) => groupedColumnSets.setup.has(cell.key))
+    : row;
+  const setupArgs = genGeneratorArgs(setupCells);
+
+  const uiSpecCells = groupedColumnSets.elements.size > 0
+    ? row.filter((cell) => groupedColumnSets.elements.has(cell.key))
+    : row;
+  const uiSpecArgs = genGeneratorArgs(uiSpecCells);
+
+  return `{
+  title: "#${ind}",
+  setup: gen_setup({${setupArgs}}),
+  elements: gen_ui_spec({${uiSpecArgs}}),
+}`;
+}
+
+const generatorBoilerplate = {
+  gen_setup: "",
+  gen_ui_spec: "",
+}
+
+const returnTypes = {
+  gen_setup: "ComponentSetup",
+  gen_ui_spec: "FSMElements[]",
+}
+
 export function genVertexSuite(markdownTable: string, groupedColumnSets: Record<"setup" | "elements", Set<string>>): [string, string[]] {
-  // Split the table into lines
-  const lines = markdownTable.trim().split('\n');
 
-  // Extract the header row
-  const headers = lines[0]
-    .split('|')
-    .filter(header => header)
-    .map(header => header.trim().replaceAll(" ", "_"));
-
-  // Extract the data rows
-  const dataRows = lines.slice(2).map(row => row.split('|').map(cell => cell.trim()).filter(cell => cell));
-
-  // Function to generate the formatted JS code for each test case
-  function genTestCaseCode(setupData: Record<string, string>, elementsData: Record<string, string>) {
-    const setupObject = JSON.stringify(setupData, null, 2);
-    const elementsObject = JSON.stringify(elementsData, null, 2);
-    return `  {
-    setup: gen_setup(${setupObject}),
-    elements: gen_ui_spec(${elementsObject})
-  }`;
-  }
+  const [tableRowsParsed, headers] = parseTableRows(markdownTable);
 
   // Process each row and convert it into a JS code string
-  const testCasesCode = dataRows.map(row => {
-    // Create the setup object
-    const setupData: Record<string, string> = [...groupedColumnSets.setup].reduce((obj, col) => {
-      obj[col] = row[headers.indexOf(col.replaceAll(" ", "_"))];
-      return obj;
-    }, {} as Record<string, string>);
+  const testCasesCode = tableRowsParsed.map((tableRow, ind) => genVertexTestCaseCode(tableRow, ind, headers, groupedColumnSets));
 
-    // Create the elements object
-    const elementsData = [...groupedColumnSets.elements].reduce((obj, col) => {
-      obj[col] = row[headers.indexOf(col.replaceAll(" ", "_"))];
-      return obj;
-    }, {} as Record<string, string>);
-
-    // Generate the test case JS code
-    return genTestCaseCode(setupData, elementsData);
-  });
-
+  const generatorSignatures = genGeneratorSignatures<"gen_setup" | "gen_ui_spec">(["gen_setup", "gen_ui_spec"], headers, returnTypes, generatorBoilerplate);
   // Combine all test cases into a single JS array declaration
-  return [`const test_cases = [
+  return [`${generatorSignatures}\n\nconst test_cases = [
 ${testCasesCode.join(',\n')}
-];`, headers];
+];`.replaceAll("\t", "  "), headers];
 }
