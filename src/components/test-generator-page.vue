@@ -9,7 +9,9 @@
           <button :id="`delete-${group}-group`" @click="delete columnGroups[group]">x</button>
         </div> -->
         <div class="header-options">
-          <div class="header-option" v-for="header of headers" :key="`${group}-${header}`">
+          <input type="checkbox" v-model="columnGroups[group].all" @input="debouncedUpdate"
+            @update:model-value="on_toggle_all(group)"> all
+          <div class="header-option" v-for="header of columns" :key="`${group}-${header}`">
             <input type="checkbox" v-model="columnGroups[group][header]" @input="debouncedUpdate"> {{ header }}
           </div>
         </div>
@@ -64,22 +66,40 @@ const generatorType = inject("generatorType") as Ref<TestType>;
 
 const userInput = ref(edgeSampleTable); // Model for the user's input
 const generatedCode = ref(''); // Model for the mirrored (read-only) input
-const headers = ref<string[]>([])
+const columns = ref<string[]>([]);
+
 const debouncedUpdate = ref(() => { });
 const add_group_mode = ref(false);
 const newGroupName = ref("");
 
 const DEFAULT_GROUPS = {
-  setup: {},
-  transition: {},
-  gql_spec: {},
-  elements: {},
+  setup: {
+    all: false,
+  },
+  transition: {
+    all: false,
+  },
+  edge: {
+    all: false,
+  },
+  gql_spec: {
+    all: false,
+  },
+  elements: {
+    all: false,
+  },
+  "v-A": {
+    all: false,
+  },
+  "v-B": {
+    all: false,
+  },
 };
 const columnGroups = ref(DEFAULT_GROUPS);
 
 const groupsByGeneratorType: Record<TestType, (keyof typeof DEFAULT_GROUPS)[]> = {
   vertex: ["setup", "elements"],
-  edge: ["setup", "transition", "elements"],
+  edge: ["v-A", "edge", "v-B"],
   fixture: [],
 }
 
@@ -96,30 +116,55 @@ watch(
   },
 )
 
-const updateGeneratedCode = () => {
-  const groupedSets: Record<string, Set<string>> = Object.fromEntries(
+const addColumnKeys = () => {
+  for (const group in columnGroups.value) {
+    for (const column of columns.value) {
+      if (column in columnGroups.value[group]) continue;
+      columnGroups.value[group] = {
+        ...columnGroups.value[group],
+        [column]: false,
+      }
+    }
+  }
+};
+
+const getEnabledColumnGroups = (): Record<string, Set<string>> => {
+  return Object.fromEntries(
     Object
       .entries(columnGroups.value)
       .map(([group, values]) => {
         const trimmed_values = Object.entries(values)
-          .filter(([, value]) => value)
+          .filter(([, value]) => !!value)
           .map(([header]) => (header as string).trim().replaceAll(" ", "_").replaceAll("-", "_"))
         return [group, new Set(trimmed_values)];
       })
   );
-  try {
-    if (generatorType.value === "edge") {
-      [generatedCode.value, headers.value] = genEdgeSuite(userInput.value, groupedSets);
+};
 
-    } else if (generatorType.value === "vertex") {
-      [generatedCode.value, headers.value] = genVertexSuite(userInput.value, groupedSets);
-    }
-    console.log(generatedCode.value);
+const updateGeneratedCode = () => {
+  const enabledColumnGroups = getEnabledColumnGroups();
+  try {
+    const generator = generatorType.value === "edge" ? genEdgeSuite : genVertexSuite;
+    console.log("enabledColumnGroups", enabledColumnGroups);
+    [generatedCode.value, columns.value] = generator(userInput.value, enabledColumnGroups);
+    addColumnKeys();
+    // console.log(generatedCode.value);
   } catch (e) {
     // @ts-ignore
     userInput.value = e;
   }
 };
+
+const on_toggle_all = (group) => {
+  console.log("toggling group", group);
+  console.log("groups", columnGroups.value);
+  const value_for_group = columnGroups.value[group].all;
+
+  for (const header in columnGroups.value[group]) {
+    columnGroups.value[group][header] = value_for_group;
+  }
+};
+
 const add_group = (confirmed: boolean) => {
   if (!confirmed) {
 

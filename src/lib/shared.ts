@@ -32,27 +32,28 @@ export function parseTableRows(markdownTable: string): [ParsedCell[][], string[]
 
 export function genArgCode(cell: ParsedCell): string {
   if (cell.value === "null") {
-    return `\t\t${cell.key}: null`;
+    return `\t\t\t${cell.key}: null`;
   }
   if (cell.value === "false") {
-    return `\t\t${cell.key}: false`;
+    return `\t\t\t${cell.key}: false`;
   }
   if (cell.value === "true") {
-    return `\t\t${cell.key}: true`;
+    return `\t\t\t${cell.key}: true`;
   }
   const asFloat = Number.parseFloat(cell.value);
   const typeAwareStringified = Number.isNaN(asFloat) ? `"${cell.value}"` : asFloat
-  return `\t\t${cell.key}: ${typeAwareStringified}`;
+  return `\t\t\t${cell.key}: ${typeAwareStringified}`;
 }
 
 export const genGeneratorArgs = (argCells: ParsedCell[]) => {
   if (argCells.length === 0) {
     return "";
   }
+  console.log("arg cells: ", argCells.filter(c => !!c.value));
   return `\n${argCells
     .filter((cell) => !!cell.value)
     .map(genArgCode)
-    .join(",\n")}\n\t`;
+    .join(",\n")}\n`;
 };
 
 export function genJSDoc<T extends string>(generator_name: T, paramNames: string[], returnTypes: Record<string, string>) {

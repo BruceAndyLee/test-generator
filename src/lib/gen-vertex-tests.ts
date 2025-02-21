@@ -25,7 +25,7 @@ const generatorBoilerplate = {
 
 const returnTypes = {
   gen_setup: "ComponentSetup",
-  gen_ui_spec: "FSMElements[]",
+  gen_ui_spec: "FSMElement[]",
 }
 
 export function genVertexSuite(markdownTable: string, groupedColumnSets: Record<"setup" | "elements", Set<string>>): [string, string[]] {

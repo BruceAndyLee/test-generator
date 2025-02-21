@@ -3,5 +3,9 @@
     "source.fixAll": "explicit"
   },
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode"
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  "vscode_custom_css.imports": [
+    "file:///Users/andrey/Documents/code/_my/test-generator/.vscode/custom-vscode.css",
+  ],
 }
